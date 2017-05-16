@@ -132,6 +132,10 @@ func generateOutput(source []byte) ([]byte, error) {
 			toAppend := append([]byte("\tsetbkcolor("), bgColor...)
 			toAppend = append(toAppend, []byte(");\n\tcleardevice();\n")...)
 			output = append(output, toAppend...)
+		case bytes.Equal([]byte(""), v):
+			break
+		default:
+			return nil, errors.New("unexpected identifier")
 		}
 	}
 
