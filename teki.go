@@ -29,17 +29,14 @@ func getSource(path string) ([]byte, error) {
 	return input, nil
 }
 
-func checkIfLoopHasEndTag(splitSource [][]byte, currentIndex int, ler *regexp.Regexp) bool {
+func getLoopEndTagIndex(splitSource [][]byte, currentIndex int, ler *regexp.Regexp) int {
 	var i int
 	for i = currentIndex + 2; i < len(splitSource); i++ {
 		if ler.Match(splitSource[i]) {
 			break
 		}
 	}
-	if i >= len(splitSource) {
-		return false
-	}
-	return true
+	return i
 }
 
 func getPrefix(indicator bool) []byte {
@@ -50,14 +47,16 @@ func getPrefix(indicator bool) []byte {
 }
 
 func generateOutput(source []byte) ([]byte, error) {
+	output := []byte("#include <graphics.h>\n#include <stdlib.h>\n#include <stdio.h>\n\nint main()\n{\n\tinitwindow(800, 800);\n\n")
+
 	fbRp := regexp.MustCompile("^(forward|backward) [1-9][0-9]*$")
 	lrRp := regexp.MustCompile("^(left|right) -?[1-9][0-9]*$")
 	loopRp := regexp.MustCompile("^loop [1-9][0-9]*$")
 	loopEndRp := regexp.MustCompile("^loopend$")
 	drawRp := regexp.MustCompile("^draw$")
 	nodrawRp := regexp.MustCompile("^nodraw$")
-
-	output := []byte("#include <graphics.h>\n#include <stdlib.h>\n#include <stdio.h>\n\nint main()\n{\n\tinitwindow(800, 800);\n\n")
+	colorRp := regexp.MustCompile("^color (0|BLACK|1|BLUE|2|GREEN|3|CYAN|4|RED|5|MAGENTA|6|BROWN|7|LIGHTGRAY|8|DARKGRAY|9|LIGHTBLUE|10|LIGHTGREEN|11|LIGHTCYAN|12|LIGHTRED|13|LIGHTMAGENTA|14|YELLOW|15|WHITE)$")
+	bgColorRp := regexp.MustCompile("^bgcolor (0|BLACK|1|BLUE|2|GREEN|3|CYAN|4|RED|5|MAGENTA|6|BROWN|7|LIGHTGRAY|8|DARKGRAY|9|LIGHTBLUE|10|LIGHTGREEN|11|LIGHTCYAN|12|LIGHTRED|13|LIGHTMAGENTA|14|YELLOW|15|WHITE)$")
 
 	drawIndicator := true
 	pen := pen{
@@ -65,10 +64,11 @@ func generateOutput(source []byte) ([]byte, error) {
 		90,
 	}
 
+	var loopBegin, loopEnd, loopCounter int
+
 	splitSource := bytes.Split(source, []byte("\n"))
-	for i, v := range splitSource {
-		v = bytes.TrimSpace(v)
-		fmt.Printf("%q\n", v)
+	for i := 0; i < len(splitSource); i++ {
+		v := bytes.TrimSpace(splitSource[i])
 
 		switch {
 		case fbRp.Match(v):
@@ -96,24 +96,47 @@ func generateOutput(source []byte) ([]byte, error) {
 
 			pen.angle = (pen.angle + rotationAngle) % 360
 		case loopRp.Match(v):
-			if !checkIfLoopHasEndTag(splitSource, i, loopEndRp) {
+			loopBegin = i
+			loopEnd = getLoopEndTagIndex(splitSource, i, loopEndRp)
+			if loopEnd >= len(splitSource) {
 				return nil, errors.New("expected loopend, found EOF")
 			}
 
 			splitLoopString := bytes.Split(v, []byte(" "))
-			loopCounter := splitLoopString[1]
-			toAppend := append([]byte("\tfor (int i = 0; i < "), loopCounter...)
-			toAppend = append(toAppend, []byte("; i++) {\n")...)
-			output = append(output, toAppend...)
+			var err error
+			loopCounter, err = strconv.Atoi(string(splitLoopString[1]))
+			if err != nil {
+				return nil, errors.New("couldn't convert []byte to int")
+			}
+
+			//loopCounter = loopNumber
+			//toAppend := append([]byte("\tfor (int i = 0; i < "), loopNumber...)
+			//toAppend = append(toAppend, []byte("; i++) {\n")...)
+			//output = append(output, toAppend...)
 		case loopEndRp.Match(v):
-			output = append(output, []byte("\t}\n")...)
+			if loopCounter > 0 {
+				loopCounter--
+				i = loopBegin
+			}
 		case drawRp.Match(v):
 			drawIndicator = true
 		case nodrawRp.Match(v):
 			drawIndicator = false
-		}
+		case colorRp.Match(v):
+			split := bytes.Split(v, []byte(" "))
+			color := split[1]
 
-		// TODO: handle error
+			toAppend := append([]byte("\tsetcolor("), color...)
+			toAppend = append(toAppend, []byte(");\n")...)
+			output = append(output, toAppend...)
+		case bgColorRp.Match(v):
+			split := bytes.Split(v, []byte(" "))
+			bgColor := split[1]
+
+			toAppend := append([]byte("\tsetbkcolor("), bgColor...)
+			toAppend = append(toAppend, []byte(");\n")...)
+			output = append(output, toAppend...)
+		}
 	}
 
 	output = append(output, []byte("\n\tgetch();\n\tclosegraph();\n\treturn 0;\n}\n")...)
