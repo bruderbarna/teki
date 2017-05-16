@@ -1,8 +1,9 @@
+bgcolor CYAN
 loop 10
         left 10
+        color BLACK
         forward 30
-        nodraw
+        color BLUE
         right 10
         backward 20
-        draw
 loopend

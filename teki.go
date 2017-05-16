@@ -29,9 +29,9 @@ func getSource(path string) ([]byte, error) {
 	return input, nil
 }
 
-func getLoopEndTagIndex(splitSource [][]byte, currentIndex int, ler *regexp.Regexp) int {
+func getLoopEndTagIndex(splitSource [][]byte, currentIndex int, lr *regexp.Regexp, ler *regexp.Regexp) int {
 	var i int
-	for i = currentIndex + 2; i < len(splitSource); i++ {
+	for i = currentIndex + 1; i < len(splitSource); i++ {
 		if ler.Match(splitSource[i]) {
 			break
 		}
@@ -47,8 +47,6 @@ func getPrefix(indicator bool) []byte {
 }
 
 func generateOutput(source []byte) ([]byte, error) {
-	output := []byte("#include <graphics.h>\n#include <stdlib.h>\n#include <stdio.h>\n\nint main()\n{\n\tinitwindow(800, 800);\n\n")
-
 	fbRp := regexp.MustCompile("^(forward|backward) [1-9][0-9]*$")
 	lrRp := regexp.MustCompile("^(left|right) -?[1-9][0-9]*$")
 	loopRp := regexp.MustCompile("^loop [1-9][0-9]*$")
@@ -58,6 +56,10 @@ func generateOutput(source []byte) ([]byte, error) {
 	colorRp := regexp.MustCompile("^color (0|BLACK|1|BLUE|2|GREEN|3|CYAN|4|RED|5|MAGENTA|6|BROWN|7|LIGHTGRAY|8|DARKGRAY|9|LIGHTBLUE|10|LIGHTGREEN|11|LIGHTCYAN|12|LIGHTRED|13|LIGHTMAGENTA|14|YELLOW|15|WHITE)$")
 	bgColorRp := regexp.MustCompile("^bgcolor (0|BLACK|1|BLUE|2|GREEN|3|CYAN|4|RED|5|MAGENTA|6|BROWN|7|LIGHTGRAY|8|DARKGRAY|9|LIGHTBLUE|10|LIGHTGREEN|11|LIGHTCYAN|12|LIGHTRED|13|LIGHTMAGENTA|14|YELLOW|15|WHITE)$")
 
+	splitSource := bytes.Split(source, []byte("\n"))
+
+	output := []byte("#include <graphics.h>\n#include <stdlib.h>\n#include <stdio.h>\n\nint main()\n{\n\tinitwindow(800, 800);\n\n")
+
 	drawIndicator := true
 	pen := pen{
 		position{400, 400},
@@ -66,7 +68,6 @@ func generateOutput(source []byte) ([]byte, error) {
 
 	var loopBegin, loopEnd, loopCounter int
 
-	splitSource := bytes.Split(source, []byte("\n"))
 	for i := 0; i < len(splitSource); i++ {
 		v := bytes.TrimSpace(splitSource[i])
 
@@ -96,8 +97,8 @@ func generateOutput(source []byte) ([]byte, error) {
 
 			pen.angle = (pen.angle + rotationAngle) % 360
 		case loopRp.Match(v):
-			loopBegin = i
-			loopEnd = getLoopEndTagIndex(splitSource, i, loopEndRp)
+			loopBegin = i + 1
+			loopEnd = getLoopEndTagIndex(splitSource, i, loopRp, loopEndRp)
 			if loopEnd >= len(splitSource) {
 				return nil, errors.New("expected loopend, found EOF")
 			}
@@ -108,13 +109,8 @@ func generateOutput(source []byte) ([]byte, error) {
 			if err != nil {
 				return nil, errors.New("couldn't convert []byte to int")
 			}
-
-			//loopCounter = loopNumber
-			//toAppend := append([]byte("\tfor (int i = 0; i < "), loopNumber...)
-			//toAppend = append(toAppend, []byte("; i++) {\n")...)
-			//output = append(output, toAppend...)
 		case loopEndRp.Match(v):
-			if loopCounter > 0 {
+			if loopCounter > 1 {
 				loopCounter--
 				i = loopBegin
 			}
@@ -134,7 +130,7 @@ func generateOutput(source []byte) ([]byte, error) {
 			bgColor := split[1]
 
 			toAppend := append([]byte("\tsetbkcolor("), bgColor...)
-			toAppend = append(toAppend, []byte(");\n")...)
+			toAppend = append(toAppend, []byte(");\n\tcleardevice();\n")...)
 			output = append(output, toAppend...)
 		}
 	}
