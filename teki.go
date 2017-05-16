@@ -12,8 +12,6 @@ import (
 	"strconv"
 )
 
-const debug bool = true
-
 type position struct {
 	x, y int
 }
@@ -59,7 +57,7 @@ func generateOutput(source []byte) ([]byte, error) {
 	drawRp := regexp.MustCompile("^draw$")
 	nodrawRp := regexp.MustCompile("^nodraw$")
 
-	output := []byte("#include <graphics.h>\n#include <stdlib.h>\n#include <stdio.h>\n\nint main()\n{\n\tint gdriver = DETECT, gmode, errorcode;\n\tinitgraph(&gdriver, &gmode, NULL);\n\n")
+	output := []byte("#include <graphics.h>\n#include <stdlib.h>\n#include <stdio.h>\n\nint main()\n{\n\tinitwindow(800, 800);\n\n")
 
 	drawIndicator := true
 	pen := pen{
@@ -82,12 +80,6 @@ func generateOutput(source []byte) ([]byte, error) {
 			newPos := position{
 				int((float64(steps) * math.Cos((float64(pen.angle)*math.Pi)/180.0)) + float64(pen.pos.x)),
 				int((float64(steps) * math.Sin((float64(pen.angle)*math.Pi)/180.0)) + float64(pen.pos.y)),
-			}
-
-			if debug {
-				log.Printf("steps = %+v\n", steps)
-				log.Printf("pen = %+v\n", pen)
-				log.Printf("newPos = %+v\n", newPos)
 			}
 
 			if drawIndicator {

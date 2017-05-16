@@ -4,10 +4,11 @@
 
 int main()
 {
-	int gdriver = DETECT, gmode, errorcode;
-	initgraph(&gdriver, &gmode, NULL);
+	initwindow(800, 800);
 
-	line(400, 600, 350, 686);
+	for (int i = 0; i < 10; i++) {
+	line(400, 400, 394, 429);
+	}
 
 	getch();
 	closegraph();

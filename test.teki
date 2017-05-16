@@ -1,5 +1,8 @@
+loop 10
+        left 10
+        forward 30
         nodraw
-        forward 200
-        left 30
+        right 10
+        backward 20
         draw
-        forward 100
+loopend
