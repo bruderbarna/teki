@@ -32,6 +32,10 @@ func getSource(path string) ([]byte, error) {
 func getLoopEndTagIndex(splitSource [][]byte, currentIndex int, lr *regexp.Regexp, ler *regexp.Regexp) int {
 	var i int
 	for i = currentIndex + 1; i < len(splitSource); i++ {
+		log.Printf("splitSource[i] = %q\n", splitSource[i])
+		if lr.Match(splitSource[i]) {
+			return -1
+		}
 		if ler.Match(splitSource[i]) {
 			break
 		}
@@ -57,6 +61,9 @@ func generateOutput(source []byte) ([]byte, error) {
 	bgColorRp := regexp.MustCompile("^bgcolor (0|BLACK|1|BLUE|2|GREEN|3|CYAN|4|RED|5|MAGENTA|6|BROWN|7|LIGHTGRAY|8|DARKGRAY|9|LIGHTBLUE|10|LIGHTGREEN|11|LIGHTCYAN|12|LIGHTRED|13|LIGHTMAGENTA|14|YELLOW|15|WHITE)$")
 
 	splitSource := bytes.Split(source, []byte("\n"))
+	for i := 0; i < len(splitSource); i++ {
+		splitSource[i] = bytes.TrimSpace(splitSource[i])
+	}
 
 	output := []byte("#include <graphics.h>\n#include <stdlib.h>\n#include <stdio.h>\n\nint main()\n{\n\tinitwindow(800, 800);\n\n")
 
@@ -69,11 +76,9 @@ func generateOutput(source []byte) ([]byte, error) {
 	var loopBegin, loopEnd, loopCounter int
 
 	for i := 0; i < len(splitSource); i++ {
-		v := bytes.TrimSpace(splitSource[i])
-
 		switch {
-		case fbRp.Match(v):
-			split := bytes.Split(v, []byte(" "))
+		case fbRp.Match(splitSource[i]):
+			split := bytes.Split(splitSource[i], []byte(" "))
 			steps, err := strconv.Atoi(string(split[1]))
 			if err != nil {
 				panic(err)
@@ -88,51 +93,54 @@ func generateOutput(source []byte) ([]byte, error) {
 				break
 			}
 			pen.pos = newPos
-		case lrRp.Match(v):
-			split := bytes.Split(v, []byte(" "))
+		case lrRp.Match(splitSource[i]):
+			split := bytes.Split(splitSource[i], []byte(" "))
 			rotationAngle, err := strconv.Atoi(string(split[1]))
 			if err != nil {
 				panic(err)
 			}
 
 			pen.angle = (pen.angle + rotationAngle) % 360
-		case loopRp.Match(v):
+		case loopRp.Match(splitSource[i]):
 			loopBegin = i + 1
 			loopEnd = getLoopEndTagIndex(splitSource, i, loopRp, loopEndRp)
+			if loopEnd == -1 {
+				return nil, errors.New("nested loops aren't supported")
+			}
 			if loopEnd >= len(splitSource) {
 				return nil, errors.New("expected loopend, found EOF")
 			}
 
-			splitLoopString := bytes.Split(v, []byte(" "))
+			splitLoopString := bytes.Split(splitSource[i], []byte(" "))
 			var err error
 			loopCounter, err = strconv.Atoi(string(splitLoopString[1]))
 			if err != nil {
 				return nil, errors.New("couldn't convert []byte to int")
 			}
-		case loopEndRp.Match(v):
+		case loopEndRp.Match(splitSource[i]):
 			if loopCounter > 1 {
 				loopCounter--
 				i = loopBegin
 			}
-		case drawRp.Match(v):
+		case drawRp.Match(splitSource[i]):
 			drawIndicator = true
-		case nodrawRp.Match(v):
+		case nodrawRp.Match(splitSource[i]):
 			drawIndicator = false
-		case colorRp.Match(v):
-			split := bytes.Split(v, []byte(" "))
+		case colorRp.Match(splitSource[i]):
+			split := bytes.Split(splitSource[i], []byte(" "))
 			color := split[1]
 
 			toAppend := append([]byte("\tsetcolor("), color...)
 			toAppend = append(toAppend, []byte(");\n")...)
 			output = append(output, toAppend...)
-		case bgColorRp.Match(v):
-			split := bytes.Split(v, []byte(" "))
+		case bgColorRp.Match(splitSource[i]):
+			split := bytes.Split(splitSource[i], []byte(" "))
 			bgColor := split[1]
 
 			toAppend := append([]byte("\tsetbkcolor("), bgColor...)
 			toAppend = append(toAppend, []byte(");\n\tcleardevice();\n")...)
 			output = append(output, toAppend...)
-		case bytes.Equal([]byte(""), v):
+		case bytes.Equal([]byte(""), splitSource[i]):
 			break
 		default:
 			return nil, errors.New("unexpected identifier")

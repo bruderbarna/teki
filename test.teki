@@ -2,6 +2,7 @@ bgcolor CYAN
 loop 10
         left 10
         color BLACK
+        loop 5
         forward 30
         color BLUE
         right 10
