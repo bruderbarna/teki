@@ -97,10 +97,10 @@ func generateOutput(source []byte) ([]byte, error) {
 			loopBegin = i + 1
 			loopEnd = getLoopEndTagIndex(splitSource, i, loopRp, loopEndRp)
 			if loopEnd == -1 {
-				return nil, errors.New(fmt.Sprintf("Nested loops aren't supported. Error occured at line %d:\t\n%s", i+1, string(splitSource[i])))
+				return nil, errors.New("Nested loops aren't supported.")
 			}
 			if loopEnd >= len(splitSource) {
-				return nil, errors.New(fmt.Sprintf("Expected loopend, found EOF. Error occured at line %d:\t\n%s", i+1, string(splitSource[i])))
+				return nil, errors.New("Expected loopend, found EOF.")
 			}
 
 			splitLoopString := bytes.Split(splitSource[i], []byte(" "))
