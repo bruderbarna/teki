@@ -32,7 +32,6 @@ func getSource(path string) ([]byte, error) {
 func getLoopEndTagIndex(splitSource [][]byte, currentIndex int, lr *regexp.Regexp, ler *regexp.Regexp) int {
 	var i int
 	for i = currentIndex + 1; i < len(splitSource); i++ {
-		log.Printf("splitSource[i] = %q\n", splitSource[i])
 		if lr.Match(splitSource[i]) {
 			return -1
 		}
@@ -41,13 +40,6 @@ func getLoopEndTagIndex(splitSource [][]byte, currentIndex int, lr *regexp.Regex
 		}
 	}
 	return i
-}
-
-func getPrefix(indicator bool) []byte {
-	if indicator == true {
-		return []byte("\t")
-	}
-	return []byte("")
 }
 
 func generateOutput(source []byte) ([]byte, error) {
@@ -105,17 +97,17 @@ func generateOutput(source []byte) ([]byte, error) {
 			loopBegin = i + 1
 			loopEnd = getLoopEndTagIndex(splitSource, i, loopRp, loopEndRp)
 			if loopEnd == -1 {
-				return nil, errors.New("nested loops aren't supported")
+				return nil, errors.New(fmt.Sprintf("Nested loops aren't supported. Error occured at line %d:\t\n%s", i+1, string(splitSource[i])))
 			}
 			if loopEnd >= len(splitSource) {
-				return nil, errors.New("expected loopend, found EOF")
+				return nil, errors.New(fmt.Sprintf("Expected loopend, found EOF. Error occured at line %d:\t\n%s", i+1, string(splitSource[i])))
 			}
 
 			splitLoopString := bytes.Split(splitSource[i], []byte(" "))
 			var err error
 			loopCounter, err = strconv.Atoi(string(splitLoopString[1]))
 			if err != nil {
-				return nil, errors.New("couldn't convert []byte to int")
+				return nil, errors.New(fmt.Sprintf("Couldn't convert []byte to int. Error occured at line %d:\t\n%s", i+1, string(splitSource[i])))
 			}
 		case loopEndRp.Match(splitSource[i]):
 			if loopCounter > 1 {
@@ -143,7 +135,7 @@ func generateOutput(source []byte) ([]byte, error) {
 		case bytes.Equal([]byte(""), splitSource[i]):
 			break
 		default:
-			return nil, errors.New("unexpected identifier")
+			return nil, errors.New(fmt.Sprintf("Unexpected identifier. Error occured at line %d:\t\n%s", i+1, string(splitSource[i])))
 		}
 	}
 
