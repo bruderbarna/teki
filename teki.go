@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -24,7 +23,7 @@ type pen struct {
 func getSource(path string) ([]byte, error) {
 	input, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.New("Couldn't open source file for reading. Aborting.")
+		return nil, fmt.Errorf("Couldn't open source file for reading. Aborting. err: %v", err)
 	}
 	return input, nil
 }
@@ -97,17 +96,17 @@ func generateOutput(source []byte) ([]byte, error) {
 			loopBegin = i + 1
 			loopEnd = getLoopEndTagIndex(splitSource, i, loopRp, loopEndRp)
 			if loopEnd == -1 {
-				return nil, errors.New("Nested loops aren't supported.")
+				return nil, fmt.Errorf("Nested loops aren't supported.")
 			}
 			if loopEnd >= len(splitSource) {
-				return nil, errors.New("Expected loopend, found EOF.")
+				return nil, fmt.Errorf("Expected loopend, found EOF.")
 			}
 
 			splitLoopString := bytes.Split(splitSource[i], []byte(" "))
 			var err error
 			loopCounter, err = strconv.Atoi(string(splitLoopString[1]))
 			if err != nil {
-				return nil, errors.New(fmt.Sprintf("Couldn't convert []byte to int. Error occured at line %d:\t\n%s", i+1, string(splitSource[i])))
+				return nil, fmt.Errorf("Couldn't convert []byte to int. Error occured at line %d:\t\n%s\nerr: %v", i+1, string(splitSource[i]), err)
 			}
 		case loopEndRp.Match(splitSource[i]):
 			if loopCounter > 1 {
@@ -135,7 +134,7 @@ func generateOutput(source []byte) ([]byte, error) {
 		case bytes.Equal([]byte(""), splitSource[i]):
 			break
 		default:
-			return nil, errors.New(fmt.Sprintf("Unexpected identifier. Error occured at line %d:\t\n%s", i+1, string(splitSource[i])))
+			return nil, fmt.Errorf("Unexpected identifier. Error occured at line %d:\t\n%s", i+1, string(splitSource[i]))
 		}
 	}
 
@@ -146,7 +145,7 @@ func generateOutput(source []byte) ([]byte, error) {
 func writeOutput(filepath string, output []byte) error {
 	err := ioutil.WriteFile(filepath, output, 0755)
 	if err != nil {
-		return errors.New("Couldn't open output file for writing. Aborting")
+		return fmt.Errorf("Couldn't open output file for writing. Aborting err: %v", err)
 	}
 	return nil
 }
